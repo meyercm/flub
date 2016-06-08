@@ -10,19 +10,18 @@ defmodule Flub do
       channel: nil,
     ]
   end
+  
+  @all_channels __MODULE__.AllChannels
+  def all_channels, do: @all_channels
 
   def open_channels(), do: Flub.EtsHelper.Dispatchers.all
 
-  def pub(data, channel) do
+  def pub(data, channel \\ @all_channels) do
     ~M{%Message data channel}
     |> Dispatcher.publish(channel)
   end
 
-  def all_sub() do
-    Dispatcher.all_subscribe(self)
-  end
-
-  def sub(channel) do
+  def sub(channel \\ @all_channels) do
     f = fn(_) -> true end
     Dispatcher.subscribe(self, f, channel)
   end

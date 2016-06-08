@@ -3,10 +3,10 @@ defmodule Flub.Dispatcher do
   use GenServer
   import ShorterMaps
 
-  @all_channels __MODULE__.AllChannels
   ##############################
   # Global API
   ##############################
+  @all_channels Flub.all_channels
 
   @spec publish(any, any) :: :ok
   def publish(msg, @all_channels) do

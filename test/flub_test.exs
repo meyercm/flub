@@ -5,6 +5,7 @@ defmodule FlubTest do
   setup do
     on_exit fn ->
       Flub.unsub
+      :timer.sleep(10)
     end
   end
 
@@ -20,13 +21,15 @@ defmodule FlubTest do
   test "unsub shuts down the dispatcher" do
     Flub.sub(:test)
     Flub.unsub(:test)
-    :timer.sleep(100)
+    :timer.sleep(10)
     assert Flub.open_channels == []
   end
 
   test "crashed dispatcher keeps subscribers" do
     Flub.sub(:test)
-    Process.exit(Flub.EtsHelper.Dispatchers.find(:test), :kill)
+    :timer.sleep(10)
+    Flub.EtsHelper.Dispatchers.find(:test)
+    |> Process.exit(:kill)
     :timer.sleep(10)
     Flub.pub(:msg, :test)
     assert_receive(%Flub.Message{channel: :test, data: :msg})
@@ -48,15 +51,15 @@ defmodule FlubTest do
 
   test "subscribe / unsub all" do
     msg = {:blah, [5, :a]}
-    Flub.all_sub
+    Flub.sub
 
-    Flub.pub(msg, :test_chan)
-    assert_receive(%Flub.Message{channel: :test_chan, data: ^msg})
+    Flub.pub(msg)
+    assert_receive(%Flub.Message{data: ^msg})
 
     Flub.unsub
 
-    Flub.pub(msg, :test_chan)
-    refute_receive(%Flub.Message{channel: :test_chan, data: ^msg})
+    Flub.pub(msg)
+    refute_receive(%Flub.Message{data: ^msg})
   end
 
   test "unsub on process termination" do
