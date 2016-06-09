@@ -73,6 +73,30 @@ nil
 :ok
 ```
 
+## API
+
+#### Publish data to Subscribers `:pub/1, :pub/2`
+
+- `pub(data)` publish data only to subscribers listening to all events on all channels
+- `pub(data, channel)` publish data to the specified channel, and the "all events" channel
+
+#### Subscribe for data `:sub/0, :sub/1, :sub/2`
+
+- `sub()` subscribe to all events on all channels
+- `sub(channel)` subscribe to all events on a specific channel
+- `sub(pattern, channel)` *(macro)* subscribe to all events that match the given pattern on a specific channel
+
+#### Unsubscribe `unsub/0, unsub/1`
+
+- `unsub()` cancel all subscriptions on all channels
+- `unsub(channels)` cancel all subscriptions on a specific channel
+
+#### Miscellaneous
+
+- `subscribers(channel)` retrieve all pids subscribed to a channel
+- `open_channels()` Returns all channels which have an active subscriber
+- `all_channels()` Returns the name of the special "all events" channel
+
 ## Installation
 
 The package can be installed as:
