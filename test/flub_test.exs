@@ -13,7 +13,7 @@ defmodule FlubTest do
     Flub.sub(%{}, :test)
     Flub.sub(%{a: _b}, :test)
     Flub.pub(%{a: 1}, :test)
-    assert_receive(%Flub.Message{channel: :test, data: %{a: 1}})
+    assert_receive(%Flub.Message{channel: :test, data: %{a: 1}, node: node})
     refute_receive(%Flub.Message{channel: :test, data: %{a: 1}})
   end
 

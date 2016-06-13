@@ -19,6 +19,7 @@ nicely with some small forethought
 - publishing without subscribers has extremely low overhead; processing is only
 conducted when subscribers are listening to a channel.
 - Subscriptions support a pattern-matching syntax. See below for details.
+- Subscriptions can be made against a remote node running Flub.
 
 ## Usage
 
@@ -29,7 +30,7 @@ iex> Flub.sub # <= subscribe for all published messages
 ...> Flub.pub(:test) # <= publish to all channels
 :ok
 ...> flush
-%Flub.Message{channel: Flub.AllChannels, data: :test}
+%Flub.Message{channel: Flub.AllChannels, data: :test, node: :'nonode@nohost'}
 :ok
 ...> Flub.unsub # <= no longer receive messages
 [:ok]
@@ -42,7 +43,7 @@ iex> Flub.sub(MyTopic) # <= subscribe to a particular channel
 ...> Flub.pub({Interesting, :data}, MyTopic) # <= publish to that channel
 :ok
 ...> flush
-%Flub.Message{channel: MyTopic, data: {Interesting, :data}}
+%Flub.Message{channel: MyTopic, data: {Interesting, :data}, node: :'nonode@nohost'}
 :ok
 ...> Flub.unsub(MyTopic)
 :ok
@@ -65,7 +66,7 @@ nil
 ...> Flub.pub(%{key: :value, other: "other"}, MyNewTopic)
 :ok
 ...> flush
-%Flub.Message{channel: MyNewTopic, data: %{key: :value, other: "other"}}
+%Flub.Message{channel: MyNewTopic, data: %{key: :value, other: "other"}, node: :'nonode@nohost'}
 :ok
 ...> Flub.pub(%{key2: :value2}, MyNewTopic)
 :ok
@@ -80,11 +81,14 @@ nil
 - `pub(data)` publish data only to subscribers listening to all events on all channels
 - `pub(data, channel)` publish data to the specified channel, and the "all events" channel
 
-#### Subscribe for data `:sub/0, :sub/1, :sub/2`
+#### Subscribe for data `:sub/0, :sub/1, :sub/2, :sub/3`
 
 - `sub()` subscribe to all events on all channels
 - `sub(channel)` subscribe to all events on a specific channel
 - `sub(pattern, channel)` *(macro)* subscribe to all events that match the given pattern on a specific channel
+- `sub(:true, channel, node)` *(macro)* subscribe to all events on a specific channel, originating from a remote node.
+- `sub(pattern, channel, node)` *(macro)* subscribe to all events that match the given pattern on a specific channel, originating from a remote node.
+
 
 #### Unsubscribe `unsub/0, unsub/1`
 
@@ -109,7 +113,7 @@ The package can be installed as:
     end
     ```
 
-  2. Ensure channels is started before your application:
+  2. Ensure Flub is started before your application:
 
     ```elixir
     def application do

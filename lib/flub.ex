@@ -8,6 +8,7 @@ defmodule Flub do
     defstruct [
       data: nil,
       channel: nil,
+      node: nil,
     ]
   end
 
@@ -17,7 +18,7 @@ defmodule Flub do
   def open_channels(), do: Flub.EtsHelper.Dispatchers.all
 
   def pub(data, channel \\ @all_channels) do
-    ~M{%Message data channel}
+    ~M{%Message data channel node}
     |> Dispatcher.publish(channel)
   end
 
