@@ -11,7 +11,7 @@ defmodule FlubTest do
 
   test "multi subscribe gets one message for dual-match" do
     Flub.sub(%{}, :test)
-    Flub.sub(%{a: b}, :test)
+    Flub.sub(%{a: _b}, :test)
     Flub.pub(%{a: 1}, :test)
     assert_receive(%Flub.Message{channel: :test, data: %{a: 1}})
     refute_receive(%Flub.Message{channel: :test, data: %{a: 1}})
@@ -124,7 +124,7 @@ defmodule FlubTest do
     assert_receive %Flub.Message{data: :ok, channel: :test_channel}
   end
   test "node syntax with pattern" do
-    Flub.sub(%{a: b}, MyChan, node)
+    Flub.sub(%{a: _b}, MyChan, node)
     Flub.pub(%{a: 1}, MyChan)
     assert_receive %Flub.Message{data: %{a: 1}, channel: MyChan}
     Flub.pub(%{b: 1}, MyChan)
