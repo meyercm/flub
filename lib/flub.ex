@@ -10,7 +10,7 @@ defmodule Flub do
       channel: nil,
     ]
   end
-  
+
   @all_channels __MODULE__.AllChannels
   def all_channels, do: @all_channels
 
@@ -26,7 +26,14 @@ defmodule Flub do
     Dispatcher.subscribe(self, f, channel)
   end
 
-  defmacro sub(pattern, channel) do
+
+  defmacro sub(pattern, channel, node \\ :local)
+  defmacro sub(true, channel, node) do
+    quote do
+      Flub.do_sub(unquote(node), unquote(channel), true)
+    end
+  end
+  defmacro sub(pattern, channel, node) do
     quote do
       f = fn (msg) ->
         case(msg) do
@@ -34,8 +41,15 @@ defmodule Flub do
          _                -> false
         end
       end
-      Dispatcher.subscribe(self, f, unquote(channel))
+      Flub.do_sub(unquote(node), unquote(channel), f)
     end
+  end
+
+  def do_sub(:local, channel, fun_or_true) do
+    Dispatcher.subscribe(self, fun_or_true, channel)
+  end
+  def do_sub(other_node, channel, fun_or_true) do
+    :rpc.call(other_node, Dispatcher, :subscribe, [self, fun_or_true, channel])
   end
 
   def subscribers(channel) do

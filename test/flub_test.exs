@@ -27,7 +27,6 @@ defmodule FlubTest do
 
   test "crashed dispatcher keeps subscribers" do
     Flub.sub(:test)
-    :timer.sleep(10)
     Flub.EtsHelper.Dispatchers.find(:test)
     |> Process.exit(:kill)
     :timer.sleep(10)
@@ -107,7 +106,7 @@ defmodule FlubTest do
     Flub.pub(msg, :test_chan)
     Flub.pub(msg2, :test_chan)
 
-    :timer.sleep 500
+
     refute_receive %Flub.Message{data: %TestStruct{value: 15}, channel: :test_chan}
     assert_receive %Flub.Message{data: %TestStruct{value: 10}, channel: :test_chan}
   end
@@ -117,5 +116,18 @@ defmodule FlubTest do
     Flub.sub(%TestStruct{value: ^myvar}, :test_chan)
     Flub.pub(msg, :test_chan)
     assert_receive %Flub.Message{data: %TestStruct{value: ^myvar, other: :custom}, channel: :test_chan}
+  end
+
+  test "node syntax" do
+    Flub.sub(true, :test_channel, node)
+    Flub.pub(:ok, :test_channel)
+    assert_receive %Flub.Message{data: :ok, channel: :test_channel}
+  end
+  test "node syntax with pattern" do
+    Flub.sub(%{a: b}, MyChan, node)
+    Flub.pub(%{a: 1}, MyChan)
+    assert_receive %Flub.Message{data: %{a: 1}, channel: MyChan}
+    Flub.pub(%{b: 1}, MyChan)
+    refute_receive %Flub.Message{data: %{b: 1}, channel: MyChan}
   end
 end

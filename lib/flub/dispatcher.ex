@@ -36,17 +36,17 @@ defmodule Flub.Dispatcher do
   def subscribe(pid, fun, channel) do
     case Dispatchers.find(channel) do
       :undefined ->
-        {:ok, pid} = Flub.DispatcherSup.start_worker(channel)
-        pid
-      pid ->
-        case Process.alive?(pid) do
-          true -> pid
+        {:ok, server_pid} = Flub.DispatcherSup.start_worker(channel)
+        server_pid
+      server_pid ->
+        case Process.alive?(server_pid) do
+          true -> server_pid
           false ->
-            {:ok, pid} = Flub.DispatcherSup.start_worker(channel)
-            pid
+            {:ok, new_server_pid} = Flub.DispatcherSup.start_worker(channel)
+            new_server_pid
         end
     end
-    |> GenServer.cast({:subscribe, pid, fun})
+    |> GenServer.call({:subscribe, pid, fun})
     :ok
   end
 
@@ -60,13 +60,13 @@ defmodule Flub.Dispatcher do
 
   @spec unsubscribe(pid) :: :ok
   def unsubscribe(pid) do
-    Dispatchers.multi_cast({:unsubscribe, pid})
+    Dispatchers.multi_call({:unsubscribe, pid})
   end
 
   @spec unsubscribe(pid, any) :: :ok
   def unsubscribe(pid, channel) do
     Dispatchers.find(channel)
-    |> GenServer.cast({:unsubscribe, pid})
+    |> GenServer.call({:unsubscribe, pid})
   end
 
   ##############################
@@ -89,17 +89,28 @@ defmodule Flub.Dispatcher do
   ##############################
   def init([channel]) do
     Dispatchers.create(channel, self)
-    state = Subscribers.find(channel)
-            |> Enum.reduce(~M{%State channel},
-                           fn({pid, funs}, acc) ->
-                             add_subscriber(acc, pid, funs)
-                           end)
-    {:ok, state}
+    subscribers = Subscribers.find(channel)
+                  |> Enum.map(fn({pid, funs}) ->
+                                {pid, add_subscriber(channel, pid, funs)}
+                              end)
+                  |> Enum.into(%{})
+    {:ok, ~M{%State channel subscribers}}
   end
 
   def handle_call(:subscribers, _from, ~M{subscribers} = state) do
     pids = Map.keys(subscribers)
     {:reply, pids, state}
+  end
+  def handle_call({:subscribe, pid, fun}, _from, ~M{channel subscribers} = state) do
+    subscriber = case Map.get(subscribers, pid, nil) do
+      nil -> add_subscriber(channel, pid, fun)
+      sub -> update_subscriber(channel, sub, fun)
+    end
+    {:reply, :ok, %{state|subscribers: put_in(subscribers[pid], subscriber)}}
+  end
+  def handle_call({:unsubscribe, pid}, _from, state) do
+    state = remove_subscriber(state, pid)
+    {:reply, :ok, state}
   end
 
   def handle_cast(:stop, ~M{subscribers channel} = state) do
@@ -116,14 +127,6 @@ defmodule Flub.Dispatcher do
     end
     {:noreply, state}
   end
-  def handle_cast({:subscribe, pid, fun}, state) do
-    state = add_subscriber(state, pid, fun)
-    {:noreply, state}
-  end
-  def handle_cast({:unsubscribe, pid}, state) do
-    state = remove_subscriber(state, pid)
-    {:noreply, state}
-  end
 
   def handle_info({:DOWN, _ref, :process, pid, _info}, state) do
     state = remove_subscriber(state, pid)
@@ -133,31 +136,37 @@ defmodule Flub.Dispatcher do
   ##############################
   # Internal Calls
   ##############################
-
+  require Logger
+  def send_to_subs(pid, true, msg) do
+    #Logger.debug("sending to #{inspect pid}")
+    send(pid, msg)
+  end
   def send_to_subs(pid, funs, msg) do
     match = Enum.any?(funs, fn f ->
                               try do f.(msg.data) rescue _ -> false end
                             end)
     if match do
-      send(pid, msg)
+      send_to_subs(pid, true, msg)
     end
   end
 
-  def add_subscriber(~M{channel subscribers} = state, pid, funs) when is_list(funs) do
-    subscribers = case Map.get(subscribers, pid) do
-      %{funs: old_funs} = sub ->
-        funs = funs ++ old_funs
-        Subscribers.update(channel, pid, funs)
-        Map.put(subscribers, pid, %{sub|funs: funs})
-      nil ->
-        Subscribers.create(channel, pid, funs)
-        monitor = Process.monitor(pid)
-        Map.put(subscribers, pid, ~M{funs pid monitor})
-    end
-    %{state|subscribers: subscribers}
+  def update_subscriber(channel, %{funs: true} = sub, _fun), do: sub
+  def update_subscriber(channel, ~M{pid} = sub, true) do
+    Subscribers.update(channel, pid, true)
+    %{sub|funs: true}
   end
-  def add_subscriber(state, pid, fun) when is_function(fun) do
-    add_subscriber(state, pid, [fun])
+  def update_subscriber(channel, ~M{funs pid} = sub, fun) do
+    Subscribers.update(channel, pid, [fun|funs])
+    %{sub|funs: [fun|funs]}
+  end
+
+  def add_subscriber(channel, pid, fun) when is_function(fun) do
+    add_subscriber(channel, pid, [fun])
+  end
+  def add_subscriber(channel, pid, funs) do
+    Subscribers.create(channel, pid, funs)
+    monitor = Process.monitor(pid)
+    ~M{channel funs pid monitor}
   end
 
   def remove_subscriber(~M{channel subscribers} = state, pid) do

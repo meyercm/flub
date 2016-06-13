@@ -22,6 +22,10 @@ defmodule Flub.EtsHelper.Dispatchers do
     for {_channel, pid} <- :ets.tab2list(@table), do: GenServer.cast(pid, msg)
   end
 
+  def multi_call(msg) do
+    for {_channel, pid} <- :ets.tab2list(@table), do: GenServer.call(pid, msg)
+  end
+
   def all() do
     @table
     |> :ets.tab2list
