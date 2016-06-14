@@ -7,7 +7,7 @@ defmodule Flub.Mixfile do
   def project do
     [
       app: :flub,
-      version: @version
+      version: @version,
       elixir: "~> 1.2",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
