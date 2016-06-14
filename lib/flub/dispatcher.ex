@@ -150,11 +150,13 @@ defmodule Flub.Dispatcher do
     end
   end
 
-  def update_subscriber(channel, %{funs: true} = sub, _fun), do: sub
+  def update_subscriber(_channel, %{funs: true} = sub, _fun), do: sub
   def update_subscriber(channel, ~M{pid} = sub, true) do
     Subscribers.update(channel, pid, true)
     %{sub|funs: true}
   end
+  #TODO: add test for this case and uncomment:
+  #def update_subscriber(_channel, ~M{funs} = sub, fun) when fun in funs, do: sub
   def update_subscriber(channel, ~M{funs pid} = sub, fun) do
     Subscribers.update(channel, pid, [fun|funs])
     %{sub|funs: [fun|funs]}
