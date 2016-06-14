@@ -2,7 +2,7 @@ defmodule Flub.Mixfile do
   use Mix.Project
 
   @version "0.9.0"
-  @repo_url "https://github.com/meyercm/shorter_maps"
+  @repo_url "https://github.com/meyercm/flub"
 
   def project do
     [
