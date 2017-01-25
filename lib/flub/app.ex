@@ -8,7 +8,8 @@ defmodule Flub.App do
     children = [
       supervisor(Flub.DispatcherSup, []),
     ]
-
+    :pg2.create(:flub_apps)
+    :pg2.join(:flub_apps, self)
     opts = [strategy: :one_for_one, name: Flub.Supervisor]
     Supervisor.start_link(children, opts)
   end
