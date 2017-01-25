@@ -1,5 +1,6 @@
 alias Flub.EtsHelper.{Subscribers, Dispatchers}
 defmodule Flub.Dispatcher do
+  @moduledoc false
   use GenServer
   import ShorterMaps
 
@@ -20,7 +21,9 @@ defmodule Flub.Dispatcher do
     subscribe(pid, node(), channel, filter, mapper)
   end
   def subscribe(pid, node, channel, filter, mapper) do
-    Node.ping(node)
+    if node != node() do
+      Flub.NodeSync.maintain_connection(node)
+    end
     case Dispatchers.find(node, channel) do
       :undefined ->
         {:ok, server_pid} = Flub.DispatcherSup.start_worker(node, channel)
@@ -62,6 +65,7 @@ defmodule Flub.Dispatcher do
 
 
   defmodule State do
+    @moduledoc false
     defstruct [
       subscribers: %{}, # pid => %{monitor: ref,
                         #          pid: pid,
@@ -74,8 +78,8 @@ defmodule Flub.Dispatcher do
   # GenServer Callbacks
   ##############################
   def init([node, channel]) do
-    :pg2.create({node, channel})
-    :pg2.join({node, channel}, self)
+    :pg2.create({__MODULE__, node, channel})
+    :pg2.join({__MODULE__, node, channel}, self)
     Dispatchers.create(node, channel, self)
     subscribers = Subscribers.find(channel)
                   |> Enum.map(fn({pid, funs}) ->
@@ -131,7 +135,7 @@ defmodule Flub.Dispatcher do
 
 
   def find_all(channel) do
-    case :pg2.get_members({node(), channel}) do
+    case :pg2.get_members({__MODULE__, node(), channel}) do
       list when is_list(list) -> list
       _error -> []
     end

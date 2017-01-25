@@ -18,7 +18,7 @@ defmodule Flub.Mixfile do
   end
 
   def application do
-    [applications: [:logger, :ets_owner],
+    [applications: [:logger, :ets_owner, :gproc],
      mod: {Flub.App, []}]
   end
 
@@ -33,6 +33,8 @@ defmodule Flub.Mixfile do
       {:ets_owner, "~> 1.0"},
       {:ex2ms, "~> 1.0"},
       {:shorter_maps, "~> 1.0"},
+      {:gproc, "~> 0.5"},
+      {:ex_doc, ">= 0.0.0", only: :dev},
     ]
   end
 end

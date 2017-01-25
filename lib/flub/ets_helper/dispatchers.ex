@@ -1,4 +1,5 @@
 defmodule Flub.EtsHelper.Dispatchers do
+  @moduledoc false
   @table __MODULE__
 
   def setup, do: EtsOwner.create_table(@table, :set)

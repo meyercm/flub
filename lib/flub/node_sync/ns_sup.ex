@@ -1,4 +1,4 @@
-defmodule Flub.DispatcherSup do
+defmodule Flub.NodeSync.Supervisor do
   @moduledoc false
   use Supervisor
 
@@ -10,8 +10,8 @@ defmodule Flub.DispatcherSup do
     Supervisor.start_link(__MODULE__, [], [name: __MODULE__])
   end
 
-  def start_worker(node, channel) do
-    Supervisor.start_child(__MODULE__, [node, channel])
+  def start_child(node) do
+    Supervisor.start_child(__MODULE__, [node])
   end
 
   ##############################
@@ -20,7 +20,7 @@ defmodule Flub.DispatcherSup do
 
   def init([]) do
     children = [
-      worker(Flub.Dispatcher, [], restart: :transient)
+      worker(Flub.NodeSync.Worker, [], restart: :transient)
     ]
 
     supervise(children, strategy: :simple_one_for_one)

@@ -1,4 +1,5 @@
 defmodule Flub.EtsHelper.Subscribers do
+  @moduledoc false
   import Ex2ms
 
   @table __MODULE__

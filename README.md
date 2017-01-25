@@ -1,3 +1,9 @@
+## TODO:
+
+
+[ ] update README
+[ ] add Moduledoc to Flub
+
 # Flub
 
 Flub does Pub. Flub does Sub. Flub does PubSub, bub.

@@ -1,4 +1,5 @@
 defmodule Flub.App do
+  @moduledoc false
   use Application
 
   def start(_type, _args) do
@@ -6,10 +7,9 @@ defmodule Flub.App do
 
     Flub.EtsHelper.setup_tables
     children = [
+      supervisor(Flub.NodeSync.Supervisor, []),
       supervisor(Flub.DispatcherSup, []),
     ]
-    :pg2.create(:flub_apps)
-    :pg2.join(:flub_apps, self)
     opts = [strategy: :one_for_one, name: Flub.Supervisor]
     Supervisor.start_link(children, opts)
   end
