@@ -9,25 +9,58 @@ defmodule FlubTest do
     end
   end
 
-  test "multi subscribe gets one message for dual-match" do
-    Flub.sub(%{}, :test)
-    Flub.sub(%{a: _b}, :test)
-    Flub.pub(%{a: 1}, :test)
-    assert_receive(%Flub.Message{channel: :test, data: %{a: 1}, node: node})
-    refute_receive(%Flub.Message{channel: :test, data: %{a: 1}})
+  test "simple test" do
+    channel = "simple"
+    Flub.sub(channel)
+    Flub.pub(:custom_data, channel)
+    assert_receive(%Flub.Message{channel: ^channel, data: :custom_data})
   end
 
+  test "remapping test" do
+    channel = :remapping_test
+    Flub.sub(channel, mapper: &(&1.data + 7))
+    Flub.pub(1, channel)
+    assert_receive(8)
+  end
+
+  test "unhappy remapping" do
+    channel = :unhappy_remapping_test
+    Flub.sub(channel, mapper: &(&1.data + 1))
+    Flub.pub(:one, channel)
+    Flub.pub(2, channel)
+    assert_receive(3)
+  end
+
+  test "cancelled remapping" do
+    channel = :cancelled_remapping_test
+    Flub.sub(channel, mapper: fn %{data: :a} -> :a
+                                                   _ -> Flub.cancel_pub
+                                                end)
+    Flub.pub(:a, channel)
+    assert_receive(:a)
+    Flub.pub(11, channel)
+    refute_receive(_, 100)
+  end
+
+  test "multi subscribe gets a message for each match" do
+    import Flub, only: [p: 1]
+    Flub.sub(:test, filter: p(%{}))
+    Flub.sub(:test, filter: p(%{a: _b}))
+    Flub.pub(%{a: 1}, :test)
+    assert_receive(%Flub.Message{channel: :test, data: %{a: 1}})
+    assert_receive(%Flub.Message{channel: :test, data: %{a: 1}})
+  end
 
   test "unsub shuts down the dispatcher" do
     Flub.sub(:test)
     Flub.unsub(:test)
     :timer.sleep(10)
-    assert Flub.open_channels == []
+    assert Flub.EtsHelper.Dispatchers.find(node(), :test) == :undefined
   end
 
   test "crashed dispatcher keeps subscribers" do
     Flub.sub(:test)
-    Flub.EtsHelper.Dispatchers.find(:test)
+    Flub.EtsHelper.Dispatchers.find(node(), :test)
     |> Process.exit(:kill)
     :timer.sleep(10)
     Flub.pub(:msg, :test)
@@ -46,19 +79,6 @@ defmodule FlubTest do
     Flub.unsub(:test_chan)
     Flub.pub(msg, :test_chan)
     refute_receive ^msg
-  end
-
-  test "subscribe / unsub all" do
-    msg = {:blah, [5, :a]}
-    Flub.sub
-
-    Flub.pub(msg)
-    assert_receive(%Flub.Message{data: ^msg})
-
-    Flub.unsub
-
-    Flub.pub(msg)
-    refute_receive(%Flub.Message{data: ^msg})
   end
 
   test "unsub on process termination" do
@@ -80,9 +100,6 @@ defmodule FlubTest do
       raise "subscribed msg not received"
     end
 
-    # verify pid is in subscriber list
-    assert pid in Flub.subscribers(:test)
-
     # kill process and wait for :DOWN
     Process.exit pid, :kill
     receive do
@@ -91,18 +108,20 @@ defmodule FlubTest do
       raise("monitor msg not received")
     end
 
-    # verify pid is _not_ in subscriber list
-    assert not pid in Flub.subscribers(:test)
+    # wait for DOWN message to propogate and dispatcher to shut down:
+    Process.sleep(10)
+    assert Flub.EtsHelper.Dispatchers.find(node(), :test) == :undefined
   end
 
   defmodule TestStruct do
     defstruct value: 0, other: :default
   end
   test "pub filter" do
+    import Flub, only: [p: 1]
     myvar = 10
     msg = %TestStruct{value: 15}
     msg2 = %TestStruct{value: 10}
-    Flub.sub(%TestStruct{value: ^myvar}, :test_chan)
+    Flub.sub(:test_chan, filter: p(%TestStruct{value: ^myvar}))
     Flub.pub(msg, :test_chan)
     Flub.pub(msg2, :test_chan)
 
@@ -111,23 +130,13 @@ defmodule FlubTest do
     assert_receive %Flub.Message{data: %TestStruct{value: 10}, channel: :test_chan}
   end
   test "harmless other defaults" do
+    import Flub, only: [p: 1]
     myvar = 15
     msg = %TestStruct{value: myvar, other: :custom}
-    Flub.sub(%TestStruct{value: ^myvar}, :test_chan)
+    Flub.sub(:test_chan, filter: p(%TestStruct{value: ^myvar}))
     Flub.pub(msg, :test_chan)
     assert_receive %Flub.Message{data: %TestStruct{value: ^myvar, other: :custom}, channel: :test_chan}
   end
 
-  test "node syntax" do
-    Flub.sub(true, :test_channel, node)
-    Flub.pub(:ok, :test_channel)
-    assert_receive %Flub.Message{data: :ok, channel: :test_channel}
-  end
-  test "node syntax with pattern" do
-    Flub.sub(%{a: _b}, MyChan, node)
-    Flub.pub(%{a: 1}, MyChan)
-    assert_receive %Flub.Message{data: %{a: 1}, channel: MyChan}
-    Flub.pub(%{b: 1}, MyChan)
-    refute_receive %Flub.Message{data: %{b: 1}, channel: MyChan}
-  end
+  # TODO: cross node test
 end

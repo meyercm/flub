@@ -9,8 +9,8 @@ defmodule Flub.DispatcherSup do
     Supervisor.start_link(__MODULE__, [], [name: __MODULE__])
   end
 
-  def start_worker(channel) do
-    Supervisor.start_child(__MODULE__, [channel])
+  def start_worker(node, channel) do
+    Supervisor.start_child(__MODULE__, [node, channel])
   end
 
   ##############################

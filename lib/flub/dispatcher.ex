@@ -6,56 +6,35 @@ defmodule Flub.Dispatcher do
   ##############################
   # Global API
   ##############################
-  @all_channels Flub.all_channels
 
-  @spec publish(any, any) :: :ok
-  def publish(msg, @all_channels) do
-    Dispatchers.multi_cast({:publish, msg})
-    :ok
-  end
+  @spec publish(any, any) :: any
   def publish(msg, channel) do
     # send it to this channel
-    case Dispatchers.find(channel) do
-      :undefined -> :no_dispatcher
-      pid -> GenServer.cast(pid, {:publish, msg})
+    for pid <- find_all(channel) do
+      send(pid, {:publish, msg})
     end
-    # also send it to the @all_channels channel
-    case Dispatchers.find(@all_channels) do
-      :undefined -> :ok
-      pid -> GenServer.cast(pid, {:publish, msg})
-    end
-    :ok
+    msg
   end
 
-  def all_subscribe(pid) do
-    f = fn(_) -> true end
-    subscribe(pid, f, @all_channels)
+  def subscribe(pid, :local, channel, filter, mapper) do
+    subscribe(pid, node(), channel, filter, mapper)
   end
-
-  @spec subscribe(pid, (... -> boolean), any) :: :ok
-  def subscribe(pid, fun, channel) do
-    case Dispatchers.find(channel) do
+  def subscribe(pid, node, channel, filter, mapper) do
+    Node.ping(node)
+    case Dispatchers.find(node, channel) do
       :undefined ->
-        {:ok, server_pid} = Flub.DispatcherSup.start_worker(channel)
+        {:ok, server_pid} = Flub.DispatcherSup.start_worker(node, channel)
         server_pid
       server_pid ->
         case Process.alive?(server_pid) do
           true -> server_pid
           false ->
-            {:ok, new_server_pid} = Flub.DispatcherSup.start_worker(channel)
+            {:ok, new_server_pid} = Flub.DispatcherSup.start_worker(node, channel)
             new_server_pid
         end
     end
-    |> GenServer.call({:subscribe, pid, fun})
+    |> GenServer.call({:subscribe, pid, filter, mapper})
     :ok
-  end
-
-  @spec subscribers(any) :: [pid, ...]
-  def subscribers(channel) do
-    case Dispatchers.find(channel) do
-      :undefined -> []
-      pid -> GenServer.call(pid, :subscribers)
-    end
   end
 
   @spec unsubscribe(pid) :: :ok
@@ -65,46 +44,55 @@ defmodule Flub.Dispatcher do
 
   @spec unsubscribe(pid, any) :: :ok
   def unsubscribe(pid, channel) do
-    Dispatchers.find(channel)
+    Dispatchers.find(node(), channel)
+    |> GenServer.call({:unsubscribe, pid})
+  end
+  def unsubscribe(pid, pub_node, channel) do
+    Dispatchers.find(pub_node, channel)
     |> GenServer.call({:unsubscribe, pid})
   end
 
   ##############################
   # Instance API
   ##############################
-  @spec start_link(any) :: {:ok, pid} | :ignore | {:error, any}
-  def start_link(channel) do
-    GenServer.start_link(__MODULE__, [channel])
+  @spec start_link(atom, any) :: {:ok, pid} | :ignore | {:error, any}
+  def start_link(node, channel) do
+    GenServer.start_link(__MODULE__, [node, channel])
   end
 
 
   defmodule State do
     defstruct [
-      subscribers: %{}, # pid => ~M{funs monitor pid}
+      subscribers: %{}, # pid => %{monitor: ref,
+                        #          pid: pid,
+                        #          funs => [{:filter, :mapper}, ...]}
+      node: nil,
       channel: nil,
     ]
   end
   ##############################
   # GenServer Callbacks
   ##############################
-  def init([channel]) do
-    Dispatchers.create(channel, self)
+  def init([node, channel]) do
+    :pg2.create({node, channel})
+    :pg2.join({node, channel}, self)
+    Dispatchers.create(node, channel, self)
     subscribers = Subscribers.find(channel)
                   |> Enum.map(fn({pid, funs}) ->
                                 {pid, add_subscriber(channel, pid, funs)}
                               end)
                   |> Enum.into(%{})
-    {:ok, ~M{%State channel subscribers}}
+    {:ok, ~M{%State node channel subscribers}}
   end
 
   def handle_call(:subscribers, _from, ~M{subscribers} = state) do
     pids = Map.keys(subscribers)
     {:reply, pids, state}
   end
-  def handle_call({:subscribe, pid, fun}, _from, ~M{channel subscribers} = state) do
+  def handle_call({:subscribe, pid, filter, mapper}, _from, ~M{channel subscribers} = state) do
     subscriber = case Map.get(subscribers, pid, nil) do
-      nil -> add_subscriber(channel, pid, fun)
-      sub -> update_subscriber(channel, sub, fun)
+      nil -> add_subscriber(channel, pid, {filter, mapper})
+      sub -> update_subscriber(channel, sub, {filter, mapper})
     end
     {:reply, :ok, %{state|subscribers: put_in(subscribers[pid], subscriber)}}
   end
@@ -113,17 +101,20 @@ defmodule Flub.Dispatcher do
     {:reply, :ok, state}
   end
 
-  def handle_cast(:stop, ~M{subscribers channel} = state) do
+  def handle_cast(:stop, ~M{subscribers node channel} = state) do
     case Enum.any?(subscribers) do
       true -> {:noreply, state}
       false ->
-        Dispatchers.remove(channel)
+        Dispatchers.remove(node, channel)
         {:stop, :normal, state}
     end
   end
-  def handle_cast({:publish, msg}, ~M{subscribers} = state) do
+
+  def handle_info({:publish, msg}, ~M{subscribers} = state) do
     for ~M{pid funs} <- Map.values(subscribers) do
-      send_to_subs(pid, funs, msg)
+      for {filter, mapper} <- funs do
+        send_to_subs(pid, msg, filter, mapper)
+      end
     end
     {:noreply, state}
   end
@@ -137,36 +128,49 @@ defmodule Flub.Dispatcher do
   # Internal Calls
   ##############################
   require Logger
-  def send_to_subs(pid, true, msg) do
-    #Logger.debug("sending to #{inspect pid}")
-    send(pid, msg)
-  end
-  def send_to_subs(pid, funs, msg) do
-    match = Enum.any?(funs, fn f ->
-                              try do f.(msg.data) rescue _ -> false end
-                            end)
-    if match do
-      send_to_subs(pid, true, msg)
+
+
+  def find_all(channel) do
+    case :pg2.get_members({node(), channel}) do
+      list when is_list(list) -> list
+      _error -> []
     end
   end
 
-  def update_subscriber(_channel, %{funs: true} = sub, _fun), do: sub
-  def update_subscriber(channel, ~M{pid} = sub, true) do
-    Subscribers.update(channel, pid, true)
-    %{sub|funs: true}
+  @cancel_pub Flub.cancel_pub
+
+  def send_to_subs(_pid, _msg, false, _), do: :ok
+  def send_to_subs(_pid, @cancel_pub, true, _), do: :ok
+  def send_to_subs(pid, msg, true, :identity), do: send(pid, msg)
+  def send_to_subs(pid, msg, true, mapper) do
+    {f, m} = try do
+               {true, mapper.(msg)}
+             rescue error ->
+               Logger.error("FLUB: publishing #{inspect msg}, error in mapper lambda: #{inspect error}")
+               {false, :error}
+             end
+    send_to_subs(pid, m, f, :identity)
   end
-  #TODO: add test for this case and uncomment:
-  #def update_subscriber(_channel, ~M{funs} = sub, fun) when fun in funs, do: sub
+  def send_to_subs(pid, msg, f, mapper) do
+    match = try do
+              f.(msg.data)
+            rescue error ->
+              Logger.error("FLUB publishing #{inspect msg}, error in filter lambda: #{inspect error}")
+              false
+            end
+    send_to_subs(pid, msg, match, mapper)
+  end
+
   def update_subscriber(channel, ~M{funs pid} = sub, fun) do
     Subscribers.update(channel, pid, [fun|funs])
     %{sub|funs: [fun|funs]}
   end
 
-  def add_subscriber(channel, pid, fun) when is_function(fun) do
-    add_subscriber(channel, pid, [fun])
+  def add_subscriber(channel, pid, {filter, mapper}) do
+    add_subscriber(channel, pid, [{filter, mapper}])
   end
   def add_subscriber(channel, pid, funs) do
-    Subscribers.create(channel, pid, funs)
+    Subscribers.update(channel, pid, funs)
     monitor = Process.monitor(pid)
     ~M{channel funs pid monitor}
   end
