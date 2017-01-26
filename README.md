@@ -28,10 +28,11 @@ channel: no dispatcher implies no subscribers, and the publisher does nothing.
 When a dispatcher is running, the publisher sends the raw data to the dispatcher,
 who wraps it in a `Flub.Message` struct, providing channel and node of origin
 metadata, then passes the message to each subscribed pid.
-      ___________              ____________                 _______________
-     | Publisher |    data    | Dispatcher |    message    | Subscriber(s) |
-     |___________|  =======>  |____________|  ==========>  |_______________|
-
+```
+ ___________              ____________                 _______________
+| Publisher |    data    | Dispatcher |    message    | Subscriber(s) |
+|___________|  =======>  |____________|  ==========>  |_______________|
+```
 
 ## Usage
 
