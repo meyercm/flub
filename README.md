@@ -2,6 +2,11 @@
 
 Flub does Pub. Flub does Sub. Flub does PubSub, bub.
 
+### Current Mix deps line:
+```elixir
+{:flub, "~> 1.0"},
+```
+
 ## Major Changes
 
 #### v1.0
@@ -108,7 +113,7 @@ consuming the decoded messages and taking appropriate actions.
   - `mapper`: a lambda that transforms published messages sent to this subscriber.
   - `node`: subscribe to events on a remote node.
 
-### Filter Helper Macro `:p/1`
+#### Filter Helper Macro `:p/1`
 
 - `p(pattern)` expands to `fn pattern -> true; _ -> false end`
 - typical usage, e.g.: `Flub.sub(:mychan, filter: p(%MyStruct{}))`
@@ -118,28 +123,6 @@ consuming the decoded messages and taking appropriate actions.
 - `unsub()` cancel all subscriptions on all channels
 - `unsub(channel)` cancel all subscriptions on a specific channel
 
-## Installation
-
-The package can be installed as:
-
-  1. Add Flub to your list of dependencies in `mix.exs`:
-
-    ```elixir
-    def deps do
-      [
-        {:flub, "~> 1.0"},
-      ]
-    end
-    ```
-
-  2. Ensure Flub is started before your application:
-
-    ```elixir
-    def application do
-      [applications: [:flub]]
-    end
-    ```
-
 -----
 
-If you do something cool with `Flub`, drop me a line
+If you do something cool with `Flub`, drop me a line and let me know.
