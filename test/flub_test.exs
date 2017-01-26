@@ -5,7 +5,7 @@ defmodule FlubTest do
   setup do
     on_exit fn ->
       Flub.unsub
-      :timer.sleep(10)
+      Process.sleep(10)
     end
   end
 
@@ -53,16 +53,19 @@ defmodule FlubTest do
 
   test "unsub shuts down the dispatcher" do
     Flub.sub(:test)
+    Process.sleep(10)
+    assert Flub.Dispatcher.find_dispatcher(node(), :test) != :undefined
     Flub.unsub(:test)
-    :timer.sleep(10)
-    assert Flub.EtsHelper.Dispatchers.find(node(), :test) == :undefined
+    Process.sleep(10)
+    assert Flub.Dispatcher.find_dispatcher(node(), :test) == :undefined
   end
 
   test "crashed dispatcher keeps subscribers" do
     Flub.sub(:test)
-    Flub.EtsHelper.Dispatchers.find(node(), :test)
+    Process.sleep(100)
+    Flub.Dispatcher.find_dispatcher(node(), :test)
     |> Process.exit(:kill)
-    :timer.sleep(10)
+    Process.sleep(10)
     Flub.pub(:msg, :test)
     assert_receive(%Flub.Message{channel: :test, data: :msg})
   end
@@ -110,7 +113,7 @@ defmodule FlubTest do
 
     # wait for DOWN message to propogate and dispatcher to shut down:
     Process.sleep(10)
-    assert Flub.EtsHelper.Dispatchers.find(node(), :test) == :undefined
+    assert Flub.Dispatcher.find_dispatcher(node(), :test) == :undefined
   end
 
   defmodule TestStruct do

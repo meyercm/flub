@@ -1,4 +1,4 @@
-alias Flub.EtsHelper.{Subscribers, Dispatchers}
+alias Flub.EtsHelper.{Subscribers}
 defmodule Flub.Dispatcher do
   @moduledoc false
   use GenServer
@@ -24,7 +24,7 @@ defmodule Flub.Dispatcher do
     if node != node() do
       Flub.NodeSync.maintain_connection(node)
     end
-    case Dispatchers.find(node, channel) do
+    case find_dispatcher(node, channel) do
       :undefined ->
         {:ok, server_pid} = Flub.DispatcherSup.start_worker(node, channel)
         server_pid
@@ -41,18 +41,37 @@ defmodule Flub.Dispatcher do
   end
 
   @spec unsubscribe(pid) :: :ok
-  def unsubscribe(pid) do
-    Dispatchers.multi_call({:unsubscribe, pid})
+  def unsubscribe(client) do
+    all_dispatchers
+    |> Enum.each(fn pid -> GenServer.call(pid, {:unsubscribe, client}) end)
   end
 
   @spec unsubscribe(pid, any) :: :ok
-  def unsubscribe(pid, channel) do
-    Dispatchers.find(node(), channel)
-    |> GenServer.call({:unsubscribe, pid})
+  def unsubscribe(client, channel) do
+    case find_dispatcher(node(), channel) do
+      :undefined -> :ok
+      pid -> GenServer.call(pid, {:unsubscribe, client})
+    end
   end
-  def unsubscribe(pid, pub_node, channel) do
-    Dispatchers.find(pub_node, channel)
-    |> GenServer.call({:unsubscribe, pid})
+  def unsubscribe(client, pub_node, channel) do
+    case find_dispatcher(pub_node, channel) do
+      :undefined -> :ok
+      pid -> GenServer.call(pid, {:unsubscribe, client})
+    end
+  end
+
+
+  @doc false
+  def find_dispatcher(node, channel) do
+    case :gproc.lookup_pids({:n, :l, {__MODULE__, node, channel}}) do
+      [] -> :undefined
+      [pid] -> pid
+    end
+  end
+
+  @doc false
+  def all_dispatchers do
+    :gproc.lookup_pids({:p, :l, __MODULE__})
   end
 
   ##############################
@@ -78,9 +97,10 @@ defmodule Flub.Dispatcher do
   # GenServer Callbacks
   ##############################
   def init([node, channel]) do
+    :gproc.reg({:n, :l, {__MODULE__, node, channel}})
+    :gproc.reg({:p, :l, __MODULE__})
     :pg2.create({__MODULE__, node, channel})
     :pg2.join({__MODULE__, node, channel}, self)
-    Dispatchers.create(node, channel, self)
     subscribers = Subscribers.find(channel)
                   |> Enum.map(fn({pid, funs}) ->
                                 {pid, add_subscriber(channel, pid, funs)}
@@ -105,12 +125,10 @@ defmodule Flub.Dispatcher do
     {:reply, :ok, state}
   end
 
-  def handle_cast(:stop, ~M{subscribers node channel} = state) do
+  def handle_cast(:stop, ~M{subscribers} = state) do
     case Enum.any?(subscribers) do
       true -> {:noreply, state}
-      false ->
-        Dispatchers.remove(node, channel)
-        {:stop, :normal, state}
+      false -> {:stop, :normal, state}
     end
   end
 

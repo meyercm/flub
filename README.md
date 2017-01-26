@@ -2,7 +2,6 @@
 
 Flub does Pub. Flub does Sub. Flub does PubSub, bub.
 
-### Current Mix deps line:
 ```elixir
 {:flub, "~> 1.0"},
 ```
