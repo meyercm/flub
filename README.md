@@ -6,6 +6,8 @@ Flub does Pub. Flub does Sub. Flub does PubSub, bub.
 {:flub, "~> 1.0"},
 ```
 
+[Documentation](https://hexdocs.pm/flub/Flub.html)
+
 ## Major Changes
 
 #### v1.0
