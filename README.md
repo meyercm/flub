@@ -1,12 +1,14 @@
-## TODO:
-
-
-[ ] update README
-[ ] add Moduledoc to Flub
-
 # Flub
 
 Flub does Pub. Flub does Sub. Flub does PubSub, bub.
+
+## Major Changes
+
+#### v1.0
+
+ - the `sub` macro has been removed in favor of simpler composition using the
+new `p/1` macro. See below for details and new examples.
+ - Remote node subscriptions have been overhauled and dramatically robustified.
 
 ## Motivation
 
@@ -16,33 +18,25 @@ to be specifically aware of the other.  Additionally, extending the
 functionality of existing applications is much easier when new modules can just
 hook into existing published event streams.
 
-## Features
+## Strategy
 
-- `Flub` state is held in `:ets` tables to survive component failures
-- `Flub` supports fan-in, fan-out event flows
-- Because each channel/topic is hosted by it's own dispatcher, `Flub` scales
-nicely with some small forethought
-- publishing without subscribers has extremely low overhead; processing is only
-conducted when subscribers are listening to a channel.
-- Subscriptions support a pattern-matching syntax. See below for details.
-- Subscriptions can be made against a remote node running Flub.
+Flub's event flow is subscriber driven:  subscribing to a channel is the only
+action that 'creates' a channel, by starting a channel "dispatcher".  When
+publishing an event, Flub first checks to see if a dispatcher is running for the
+channel: no dispatcher implies no subscribers, and the publisher does nothing.
+
+When a dispatcher is running, the publisher sends the raw data to the dispatcher,
+who wraps it in a `Flub.Message` struct, providing channel and node of origin
+metadata, then passes the message to each subscribed pid.
+      ___________              ____________                 _______________
+     | Publisher |    data    | Dispatcher |    message    | Subscriber(s) |
+     |___________|  =======>  |____________|  ==========>  |_______________|
+
 
 ## Usage
 
-### Simple, single event stream
-```elixir
-iex> Flub.sub # <= subscribe for all published messages
-:ok
-...> Flub.pub(:test) # <= publish to all channels
-:ok
-...> flush
-%Flub.Message{channel: Flub.AllChannels, data: :test, node: :'nonode@nohost'}
-:ok
-...> Flub.unsub # <= no longer receive messages
-[:ok]
-```
+### Simple: consume the whole channel
 
-### Multiple event streams
 ```elixir
 iex> Flub.sub(MyTopic) # <= subscribe to a particular channel
 :ok
@@ -51,61 +45,77 @@ iex> Flub.sub(MyTopic) # <= subscribe to a particular channel
 ...> flush
 %Flub.Message{channel: MyTopic, data: {Interesting, :data}, node: :'nonode@nohost'}
 :ok
-...> Flub.unsub(MyTopic)
-:ok
-...> Flub.pub({Interesting, :data}, MyTopic)
-:ok
-...> flush  
-:ok
-...> # no messages received
 ```
 
-### Pattern Matching subscriptions
+### Filtering subscriptions via Pattern Matching
 
 ```elixir
-iex> Flub.sub(%{key: value}, MyNewTopic)  # <= sub/0 and /1 are functions
-** (CompileError) iex:13: you must require Flub before invoking the macro Flub.sub/2
-...> require Flub
-nil
-...> Flub.sub(%{key: value}, MyNewTopic)
-:ok
+iex> require Flub # needed for the `p/1` macro
+...> Flub.sub(MyNewTopic, filter: p(%{key: _value}))  
 ...> Flub.pub(%{key: :value, other: "other"}, MyNewTopic)
-:ok
 ...> flush
 %Flub.Message{channel: MyNewTopic, data: %{key: :value, other: "other"}, node: :'nonode@nohost'}
 :ok
 ...> Flub.pub(%{key2: :value2}, MyNewTopic)
-:ok
 ...> flush
+# No messages received
 :ok
 ```
 
-## API
+### Realistic use cases
 
-#### Publish data to Subscribers `:pub/1, :pub/2`
+A typical use of `Flub` is for a `GenServer` to advertise when new data becomes
+available or important state changes occur - letting API clients avoid polling
+loops.
 
-- `pub(data)` publish data only to subscribers listening to all events on all channels
-- `pub(data, channel)` publish data to the specified channel, and the "all events" channel
+#### Lightly modified example: Serial port line buffer
 
-#### Subscribe for data `:sub/0, :sub/1, :sub/2, :sub/3`
+This is a simplification of a real SerialPort worker, that publishes new
+full lines received on a serial port.  For the `~M` sigil, see [ShorterMaps](https://github.com/meyercm/shorter_maps)
 
-- `sub()` subscribe to all events on all channels
+In the code below, we assume that a serial library is sending a message to
+this `GenServer` each time a character is received. Each time a full line is
+completed, the `GenServer` publishes both the raw string and the decoded
+representation (a struct, in our case) to the appropriate Flub channels.  
+
+```elixir
+  def handle_info({:new_serial_data, data}, ~M{device buffer} = state) do
+    {new_buffer, new_lines} = update_line_buffer(buffer, data)
+    for line <- new_lines do
+      decoded = SerialCodec.decode(line)
+      Flub.pub(line, {__MODULE__.Raw, device})
+      Flub.pub(decoded, {__MODULE__.Decoded, device})
+    end
+    {:noreply, %{new_state|buffer: new_buffer}}
+  end
+```
+
+Several other GenServers in the application are subscribed to these channels,
+consuming the decoded messages and taking appropriate actions.
+
+## API Summary
+
+#### Publish data to Subscribers `:pub/2`
+
+- `pub(data, channel)` publish data to the specified channel
+
+#### Subscribe for data `:sub/1, sub/2`
+
 - `sub(channel)` subscribe to all events on a specific channel
-- `sub(pattern, channel)` *(macro)* subscribe to all events that match the given pattern on a specific channel
-- `sub(:true, channel, node)` *(macro)* subscribe to all events on a specific channel, originating from a remote node.
-- `sub(pattern, channel, node)` *(macro)* subscribe to all events that match the given pattern on a specific channel, originating from a remote node.
+- `sub(channel, opts = [filter: filter, mapper: mapper, node: node])`
+  - `filter`: a lambda that filters published messages sent to this subscriber.
+  - `mapper`: a lambda that transforms published messages sent to this subscriber.
+  - `node`: subscribe to events on a remote node.
 
+### Filter Helper Macro `:p/1`
+
+- `p(pattern)` expands to `fn pattern -> true; _ -> false end`
+- typical usage, e.g.: `Flub.sub(:mychan, filter: p(%MyStruct{}))`
 
 #### Unsubscribe `unsub/0, unsub/1`
 
 - `unsub()` cancel all subscriptions on all channels
-- `unsub(channels)` cancel all subscriptions on a specific channel
-
-#### Miscellaneous
-
-- `subscribers(channel)` retrieve all pids subscribed to a channel
-- `open_channels()` Returns all channels which have an active subscriber
-- `all_channels()` Returns the name of the special "all events" channel
+- `unsub(channel)` cancel all subscriptions on a specific channel
 
 ## Installation
 
@@ -115,7 +125,9 @@ The package can be installed as:
 
     ```elixir
     def deps do
-      [{:flub, github: "meyercm/flub"}]
+      [
+        {:flub, "~> 1.0"},
+      ]
     end
     ```
 
@@ -126,3 +138,7 @@ The package can be installed as:
       [applications: [:flub]]
     end
     ```
+
+-----
+
+If you do something cool with `Flub`, drop me a line
