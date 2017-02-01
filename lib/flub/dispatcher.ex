@@ -17,27 +17,19 @@ defmodule Flub.Dispatcher do
     msg
   end
 
+  def subscribe(pid, node_or_modifier, channel, filter, mapper)
   def subscribe(pid, :local, channel, filter, mapper) do
-    subscribe(pid, node(), channel, filter, mapper)
-  end
-  def subscribe(pid, node, channel, filter, mapper) do
-    if node != node() do
-      Flub.NodeSync.maintain_connection(node)
-    end
-    case find_dispatcher(node, channel) do
-      :undefined ->
-        {:ok, server_pid} = Flub.DispatcherSup.start_worker(node, channel)
-        server_pid
-      server_pid ->
-        case Process.alive?(server_pid) do
-          true -> server_pid
-          false ->
-            {:ok, new_server_pid} = Flub.DispatcherSup.start_worker(node, channel)
-            new_server_pid
-        end
-    end
+    find_or_start_dispatcher(node(), channel)
     |> GenServer.call({:subscribe, pid, filter, mapper})
-    :ok
+  end
+  def subscribe(pid, :global, channel, filter, mapper) do
+    find_or_start_dispatcher(:global, channel)
+    |> GenServer.call({:subscribe, pid, filter, mapper})
+  end
+  def subscribe(pid, other_node, channel, filter, mapper) do
+    Flub.NodeSync.maintain_connection(node)
+    find_or_start_dispatcher(other_node, channel)
+    |> GenServer.call({:subscribe, pid, filter, mapper})
   end
 
   @spec unsubscribe(pid) :: :ok
@@ -66,6 +58,16 @@ defmodule Flub.Dispatcher do
     case :gproc.lookup_pids({:n, :l, {__MODULE__, node, channel}}) do
       [] -> :undefined
       [pid] -> pid
+    end
+  end
+
+  @doc false
+  def find_or_start_dispatcher(node, channel) do
+    case find_dispatcher(node, channel) do
+      :undefined ->
+        {:ok, pid} = Flub.DispatcherSup.start_worker(node, channel)
+        pid
+      pid -> pid
     end
   end
 
@@ -153,10 +155,17 @@ defmodule Flub.Dispatcher do
 
 
   def find_all(channel) do
-    case :pg2.get_members({__MODULE__, node(), channel}) do
-      list when is_list(list) -> list
-      _error -> []
+    pg2_groups = [
+      {__MODULE__, node(), channel},
+      {__MODULE__, :global, channel},
+    ]
+    for group <- pg2_groups do
+      case :pg2.get_members(group) do
+        list when is_list(list) -> list
+        _error -> []
+      end
     end
+    |> List.flatten
   end
 
   @cancel_pub Flub.cancel_pub
