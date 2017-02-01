@@ -3,12 +3,16 @@
 Flub does Pub. Flub does Sub. Flub does PubSub, bub.
 
 ```elixir
-{:flub, "~> 1.0"},
+{:flub, "~> 1.1"},
 ```
 
 [Documentation](https://hexdocs.pm/flub/Flub.html)
 
 ## Major Changes
+
+#### v1.1
+
+ - addition of `:global` option when subscribing, e.g. `Flub.sub(:chan, node: :global)`
 
 #### v1.0
 
@@ -57,7 +61,7 @@ iex> Flub.sub(MyTopic) # <= subscribe to a particular channel
 ### Filtering subscriptions via Pattern Matching
 
 ```elixir
-iex> require Flub # needed for the `p/1` macro
+iex> import Flub, only: [p: 1]
 ...> Flub.sub(MyNewTopic, filter: p(%{key: _value}))  
 ...> Flub.pub(%{key: :value, other: "other"}, MyNewTopic)
 ...> flush

@@ -90,6 +90,19 @@ defmodule Flub do
       :ok
       %Flub.Message{channel: "a channel", data: {:new_data, 12}, node: :other_node@their-host}
 
+  ```
+
+  ### Global Subscription
+
+  Alternately, a subscriber can elect to receive all messages published to a
+  channel, regardless of the originating node:
+
+  ```elixir
+
+  iex> Flub.sub("important channel", node: :global)
+  :ok
+  ```
+
   """
 
 
@@ -172,7 +185,8 @@ defmodule Flub do
       Subscribing to a channel on a remote node does not imply subscribing to
       the same channel on the local node, which would require a second call to
       `Flub.sub`.  Setting `:node` to its default of `:local` creates the
-      subscription on the local node.
+      subscription on the local node. Alternately, setting `:node` to `:global`
+      subscribes to the channel across all nodes.
 
   ## Examples:
 
