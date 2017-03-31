@@ -108,19 +108,19 @@ defmodule Flub.Dispatcher do
                                 {pid, add_subscriber(channel, pid, funs)}
                               end)
                   |> Enum.into(%{})
-    {:ok, ~M{%State node channel subscribers}}
+    {:ok, ~M{%State node, channel, subscribers}}
   end
 
   def handle_call(:subscribers, _from, ~M{subscribers} = state) do
     pids = Map.keys(subscribers)
     {:reply, pids, state}
   end
-  def handle_call({:subscribe, pid, filter, mapper}, _from, ~M{channel subscribers} = state) do
+  def handle_call({:subscribe, pid, filter, mapper}, _from, ~M{channel, subscribers} = state) do
     subscriber = case Map.get(subscribers, pid, nil) do
       nil -> add_subscriber(channel, pid, {filter, mapper})
       sub -> update_subscriber(channel, sub, {filter, mapper})
     end
-    {:reply, :ok, %{state|subscribers: put_in(subscribers[pid], subscriber)}}
+    {:reply, :ok, put_in(state.subscribers[pid], subscriber)}
   end
   def handle_call({:unsubscribe, pid}, _from, state) do
     state = remove_subscriber(state, pid)
@@ -135,7 +135,7 @@ defmodule Flub.Dispatcher do
   end
 
   def handle_info({:publish, msg}, ~M{subscribers} = state) do
-    for ~M{pid funs} <- Map.values(subscribers) do
+    for ~M{pid, funs} <- Map.values(subscribers) do
       for {filter, mapper} <- funs do
         send_to_subs(pid, msg, filter, mapper)
       end
@@ -192,7 +192,7 @@ defmodule Flub.Dispatcher do
     send_to_subs(pid, msg, match, mapper)
   end
 
-  def update_subscriber(channel, ~M{funs pid} = sub, fun) do
+  def update_subscriber(channel, ~M{funs, pid} = sub, fun) do
     Subscribers.update(channel, pid, [fun|funs])
     %{sub|funs: [fun|funs]}
   end
@@ -203,10 +203,10 @@ defmodule Flub.Dispatcher do
   def add_subscriber(channel, pid, funs) do
     Subscribers.update(channel, pid, funs)
     monitor = Process.monitor(pid)
-    ~M{channel funs pid monitor}
+    ~M{channel, funs, pid, monitor}
   end
 
-  def remove_subscriber(~M{channel subscribers} = state, pid) do
+  def remove_subscriber(~M{channel, subscribers} = state, pid) do
     case Map.get(subscribers, pid) do
       nil -> :no_op
       ~M{monitor} ->

@@ -1,7 +1,7 @@
 defmodule Flub.Mixfile do
   use Mix.Project
 
-  @version "1.1.0"
+  @version "1.1.1"
   @repo_url "https://github.com/meyercm/flub"
 
   def project do
@@ -32,7 +32,7 @@ defmodule Flub.Mixfile do
     [
       {:ets_owner, "~> 1.0"},
       {:ex2ms, "~> 1.0"},
-      {:shorter_maps, "~> 1.0"},
+      {:shorter_maps, "~> 2.0"},
       {:gproc, "~> 0.5"},
       {:ex_doc, ">= 0.0.0", only: :dev},
     ]

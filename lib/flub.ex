@@ -149,7 +149,7 @@ defmodule Flub do
 
   """
   def pub(data, channel) do
-    ~M{%Message data channel node}
+    ~M{%Message data, channel, node}
     |> Dispatcher.publish(channel)
     data
   end
