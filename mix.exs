@@ -1,7 +1,7 @@
 defmodule Flub.Mixfile do
   use Mix.Project
 
-  @version "1.1.1"
+  @version "1.1.2"
   @repo_url "https://github.com/meyercm/flub"
 
   def project do
@@ -13,7 +13,7 @@ defmodule Flub.Mixfile do
       start_permanent: Mix.env == :prod,
       deps: deps,
       package: hex_package,
-      description: "Flub does Pub. Flub does Sub. Flub does PubSub, bub."
+      description: "Sane pub/sub within and across nodes."
     ]
   end
 

@@ -62,14 +62,14 @@ iex> Flub.sub(MyTopic) # <= subscribe to a particular channel
 
 ```elixir
 iex> import Flub, only: [p: 1]
-...> Flub.sub(MyNewTopic, filter: p(%{key: _value}))  
+...> Flub.sub(MyNewTopic, filter: p(%{key: _value}))
 ...> Flub.pub(%{key: :value, other: "other"}, MyNewTopic)
 ...> flush
 %Flub.Message{channel: MyNewTopic, data: %{key: :value, other: "other"}, node: :'nonode@nohost'}
 :ok
 ...> Flub.pub(%{key2: :value2}, MyNewTopic)
 ...> flush
-# No messages received
+# No messages received, because the second pub didn't have a key `:key`
 :ok
 ```
 
@@ -79,25 +79,33 @@ A typical use of `Flub` is for a `GenServer` to advertise when new data becomes
 available or important state changes occur - letting API clients avoid polling
 loops.
 
+A side benefit is in testing: if your CUT is subscribed to particular channels,
+you can simulate the actions of collaborators by having your test code publish
+expected (and unexpected!) messages. This allows simulating (and therefore
+testing) rare corner cases, specific message arrival race conditions, etc.
+Additionally, your test code can subscribe to channels that the CUT is known to
+publish to, and use the receipt of published messages to confirm proper
+operation in various situations.
+
 #### Lightly modified example: Serial port line buffer
 
 This is a simplification of a real SerialPort worker, that publishes new
-full lines received on a serial port.  For the `~M` sigil, see [ShorterMaps](https://github.com/meyercm/shorter_maps)
+full lines received on a serial port.  For the `~M` sigil, see [ShorterMaps][shorter_maps-repo]
 
 In the code below, we assume that a serial library is sending a message to
 this `GenServer` each time a character is received. Each time a full line is
 completed, the `GenServer` publishes both the raw string and the decoded
-representation (a struct, in our case) to the appropriate Flub channels.  
+representation (a struct, in our case) to the appropriate Flub channels.
 
 ```elixir
-  def handle_info({:new_serial_data, data}, ~M{device buffer} = state) do
-    {new_buffer, new_lines} = update_line_buffer(buffer, data)
+  def handle_info({:new_serial_data, data}, ~M{device, buffer} = state) do
+    {buffer, new_lines} = update_line_buffer(buffer, data)
     for line <- new_lines do
       decoded = SerialCodec.decode(line)
       Flub.pub(line, {__MODULE__.Raw, device})
       Flub.pub(decoded, {__MODULE__.Decoded, device})
     end
-    {:noreply, %{new_state|buffer: new_buffer}}
+    {:noreply, ~M{state|buffer}}
   end
 ```
 
@@ -131,3 +139,5 @@ consuming the decoded messages and taking appropriate actions.
 -----
 
 If you do something cool with `Flub`, drop me a line and let me know.
+
+[shorter_maps-repo]: https://github.com/meyercm/shorter_maps
