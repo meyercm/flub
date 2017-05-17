@@ -27,14 +27,14 @@ defmodule Flub.Dispatcher do
     |> GenServer.call({:subscribe, pid, filter, mapper})
   end
   def subscribe(pid, other_node, channel, filter, mapper) do
-    Flub.NodeSync.maintain_connection(node)
+    Flub.NodeSync.maintain_connection(other_node)
     find_or_start_dispatcher(other_node, channel)
     |> GenServer.call({:subscribe, pid, filter, mapper})
   end
 
   @spec unsubscribe(pid) :: :ok
   def unsubscribe(client) do
-    all_dispatchers
+    all_dispatchers()
     |> Enum.each(fn pid -> GenServer.call(pid, {:unsubscribe, client}) end)
   end
 
@@ -80,8 +80,8 @@ defmodule Flub.Dispatcher do
   # Instance API
   ##############################
   @spec start_link(atom, any) :: {:ok, pid} | :ignore | {:error, any}
-  def start_link(node, channel) do
-    GenServer.start_link(__MODULE__, [node, channel])
+  def start_link(the_node, channel) do
+    GenServer.start_link(__MODULE__, [the_node, channel])
   end
 
 
@@ -91,24 +91,24 @@ defmodule Flub.Dispatcher do
       subscribers: %{}, # pid => %{monitor: ref,
                         #          pid: pid,
                         #          funs => [{:filter, :mapper}, ...]}
-      node: nil,
+      the_node: nil,
       channel: nil,
     ]
   end
   ##############################
   # GenServer Callbacks
   ##############################
-  def init([node, channel]) do
-    :gproc.reg({:n, :l, {__MODULE__, node, channel}})
+  def init([the_node, channel]) do
+    :gproc.reg({:n, :l, {__MODULE__, the_node, channel}})
     :gproc.reg({:p, :l, __MODULE__})
-    :pg2.create({__MODULE__, node, channel})
-    :pg2.join({__MODULE__, node, channel}, self)
+    :pg2.create({__MODULE__, the_node, channel})
+    :pg2.join({__MODULE__, the_node, channel}, self())
     subscribers = Subscribers.find(channel)
                   |> Enum.map(fn({pid, funs}) ->
                                 {pid, add_subscriber(channel, pid, funs)}
                               end)
                   |> Enum.into(%{})
-    {:ok, ~M{%State node, channel, subscribers}}
+    {:ok, ~M{%State the_node, channel, subscribers}}
   end
 
   def handle_call(:subscribers, _from, ~M{subscribers} = state) do
@@ -215,7 +215,7 @@ defmodule Flub.Dispatcher do
     end
     subscribers = Map.delete(subscribers, pid)
     if Enum.empty?(subscribers) do
-      GenServer.cast(self, :stop)
+      GenServer.cast(self(), :stop)
     end
     %{state|subscribers: subscribers}
   end

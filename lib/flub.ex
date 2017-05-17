@@ -149,7 +149,7 @@ defmodule Flub do
 
   """
   def pub(data, channel) do
-    ~M{%Message data, channel, node}
+    ~M{%Message data, channel, node()}
     |> Dispatcher.publish(channel)
     data
   end
@@ -205,8 +205,8 @@ defmodule Flub do
   def sub(channel, opts \\ @default_sub_opts) when is_list(opts) do
     filter = Keyword.get(opts, :filter, @default_filter)
     mapper = Keyword.get(opts, :mapper, @default_mapper)
-    node = Keyword.get(opts, :node, @default_node)
-    Dispatcher.subscribe(self, node, channel, filter, mapper)
+    the_node = Keyword.get(opts, :node, @default_node)
+    Dispatcher.subscribe(self(), the_node, channel, filter, mapper)
   end
 
   @doc """
@@ -243,14 +243,14 @@ defmodule Flub do
   Unsubscribe from all channels.
   """
   def unsub do
-    Dispatcher.unsubscribe(self)
+    Dispatcher.unsubscribe(self())
   end
 
   @doc """
   Unsubscribe from a single channel.
   """
   def unsub(channel) do
-    Dispatcher.unsubscribe(self, channel)
+    Dispatcher.unsubscribe(self(), channel)
   end
 
 

@@ -10,8 +10,8 @@ defmodule Flub.NodeSync.Supervisor do
     Supervisor.start_link(__MODULE__, [], [name: __MODULE__])
   end
 
-  def start_child(node) do
-    Supervisor.start_child(__MODULE__, [node])
+  def start_child(the_node) do
+    Supervisor.start_child(__MODULE__, [the_node])
   end
 
   ##############################

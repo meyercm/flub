@@ -4,6 +4,8 @@ defmodule Flub.App do
 
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
+    # ensure that pg2 is up and running:
+    {:ok, _pid} = :pg2.start
 
     Flub.EtsHelper.setup_tables
     children = [

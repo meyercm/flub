@@ -11,6 +11,7 @@ defmodule Flub.EtsHelper.Subscribers do
   end
 
   def remove(channel, pid) do
+    # this is not `fn -> ... end`, it's a macro from Ex2ms (note the 'u' in `fun`):
     ms = fun do {^channel, ^pid, _} = ob -> ob end
     for matching <- :ets.select(@table, ms) do
       :ets.delete_object(@table, matching)

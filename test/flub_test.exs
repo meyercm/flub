@@ -85,7 +85,7 @@ defmodule FlubTest do
   end
 
   test "unsub on process termination" do
-    parent = self
+    parent = self()
 
     # spawn a blocking subscriber process
     pid = spawn fn ->
