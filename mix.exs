@@ -1,7 +1,7 @@
 defmodule Flub.Mixfile do
   use Mix.Project
 
-  @version "1.1.3"
+  @version "1.1.4"
   @repo_url "https://github.com/meyercm/flub"
 
   def project do
