@@ -1,30 +1,22 @@
 defmodule Flub.DispatcherSup do
   @moduledoc false
-  use Supervisor
+
+  use DynamicSupervisor
 
   #############
   # API
   #############
 
-  def start_link do
-    Supervisor.start_link(__MODULE__, [], [name: __MODULE__])
-  end
+  def start_link(_), do: DynamicSupervisor.start_link(__MODULE__, [], [name: __MODULE__])
 
-  def start_worker(node, channel) do
-    Supervisor.start_child(__MODULE__, [node, channel])
-  end
+  def start_worker(node, channel), do: DynamicSupervisor.start_child(__MODULE__, %{id: Flub.Dispatcher, start: {Flub.Dispatcher, :start_link, [node, channel]}, restart: :transient})
 
   ##############################
   # GenServer Callbacks
   ##############################
 
-  def init([]) do
-    children = [
-      worker(Flub.Dispatcher, [], restart: :transient)
-    ]
-
-    supervise(children, strategy: :simple_one_for_one)
-  end
+  @impl DynamicSupervisor
+  def init([]), do: DynamicSupervisor.init(strategy: :one_for_one)
 
   ##############################
   # Internal

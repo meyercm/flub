@@ -8,7 +8,7 @@ defmodule Flub.Mixfile do
     [
       app: :flub,
       version: @version,
-      elixir: "~> 1.2",
+      elixir: "~> 1.11",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       deps: deps(),
@@ -18,8 +18,9 @@ defmodule Flub.Mixfile do
   end
 
   def application do
-    [applications: [:logger, :ets_owner, :gproc],
-     mod: {Flub.App, []}]
+    [
+      extra_applications: [],
+      mod: {Flub.App, []}]
   end
 
   defp hex_package do
@@ -31,9 +32,9 @@ defmodule Flub.Mixfile do
   defp deps do
     [
       {:ets_owner, "~> 1.0"},
-      {:ex2ms, "~> 1.0"},
-      {:shorter_maps, "~> 2.1"},
-      {:gproc, "~> 0.5"},
+      {:ex2ms, "~> 1.6"},
+      {:shorter_maps, "~> 2.2"},
+      {:gproc, "~> 0.9"},
       {:ex_doc, ">= 0.0.0", only: :dev},
     ]
   end

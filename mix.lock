@@ -1,6 +1,13 @@
-%{"earmark": {:hex, :earmark, "1.1.0", "8c2bf85d725050a92042bc1edf362621004d43ca6241c756f39612084e95487f", [:mix], [], "hexpm"},
-  "ets_owner": {:hex, :ets_owner, "1.0.0", "f8408c609c29cb6925c2f71bac07f3e35352786b2c6824ad545f8133a4f3762d", [], [], "hexpm"},
-  "ex2ms": {:hex, :ex2ms, "1.4.0", "e43b410888b45ba363ea6650db3736db3e455a0a412ec244ac633fede857bcb2", [], [], "hexpm"},
-  "ex_doc": {:hex, :ex_doc, "0.14.5", "c0433c8117e948404d93ca69411dd575ec6be39b47802e81ca8d91017a0cf83c", [:mix], [{:earmark, "~> 1.0", [hex: :earmark, repo: "hexpm", optional: false]}], "hexpm"},
-  "gproc": {:hex, :gproc, "0.6.1", "4579663e5677970758a05d8f65d13c3e9814ec707ad51d8dcef7294eda1a730c", [:rebar3], [], "hexpm"},
-  "shorter_maps": {:hex, :shorter_maps, "2.2.1", "65298ed203be953a6d14755aab5c9f7e365e81104315a6799f9911e93cb99364", [:mix], [], "hexpm"}}
+%{
+  "earmark": {:hex, :earmark, "1.1.0", "8c2bf85d725050a92042bc1edf362621004d43ca6241c756f39612084e95487f", [:mix], [], "hexpm", "15e3a816bdc53d12f258ea59d0c1fae9a37da2e70a0cb486edad687f65a36f66"},
+  "earmark_parser": {:hex, :earmark_parser, "1.4.13", "0c98163e7d04a15feb62000e1a891489feb29f3d10cb57d4f845c405852bbef8", [:mix], [], "hexpm", "d602c26af3a0af43d2f2645613f65841657ad6efc9f0e361c3b6c06b578214ba"},
+  "ets_owner": {:hex, :ets_owner, "1.0.0", "f8408c609c29cb6925c2f71bac07f3e35352786b2c6824ad545f8133a4f3762d", [:mix], [], "hexpm", "54c0228a9134f4afe5c2a5418712a8b010bbc3f3e4864f3c854110f6cb65bca9"},
+  "ex2ms": {:hex, :ex2ms, "1.6.0", "f39bbd9ff1b0f27b3f707bab2d167066dd8965e7df1149b962d94c74615d0e09", [:mix], [], "hexpm", "0d1ab5e08421af5cd69146efb408dbb1ff77f38a2f4df5f086f2512dc8cf65bf"},
+  "ex_doc": {:hex, :ex_doc, "0.24.2", "e4c26603830c1a2286dae45f4412a4d1980e1e89dc779fcd0181ed1d5a05c8d9", [:mix], [{:earmark_parser, "~> 1.4.0", [hex: :earmark_parser, repo: "hexpm", optional: false]}, {:makeup_elixir, "~> 0.14", [hex: :makeup_elixir, repo: "hexpm", optional: false]}, {:makeup_erlang, "~> 0.1", [hex: :makeup_erlang, repo: "hexpm", optional: false]}], "hexpm", "e134e1d9e821b8d9e4244687fb2ace58d479b67b282de5158333b0d57c6fb7da"},
+  "gproc": {:hex, :gproc, "0.9.0", "853ccb7805e9ada25d227a157ba966f7b34508f386a3e7e21992b1b484230699", [:rebar3], [], "hexpm", "587e8af698ccd3504cf4ba8d90f893ede2b0f58cabb8a916e2bf9321de3cf10b"},
+  "makeup": {:hex, :makeup, "1.0.5", "d5a830bc42c9800ce07dd97fa94669dfb93d3bf5fcf6ea7a0c67b2e0e4a7f26c", [:mix], [{:nimble_parsec, "~> 0.5 or ~> 1.0", [hex: :nimble_parsec, repo: "hexpm", optional: false]}], "hexpm", "cfa158c02d3f5c0c665d0af11512fed3fba0144cf1aadee0f2ce17747fba2ca9"},
+  "makeup_elixir": {:hex, :makeup_elixir, "0.15.1", "b5888c880d17d1cc3e598f05cdb5b5a91b7b17ac4eaf5f297cb697663a1094dd", [:mix], [{:makeup, "~> 1.0", [hex: :makeup, repo: "hexpm", optional: false]}, {:nimble_parsec, "~> 1.1", [hex: :nimble_parsec, repo: "hexpm", optional: false]}], "hexpm", "db68c173234b07ab2a07f645a5acdc117b9f99d69ebf521821d89690ae6c6ec8"},
+  "makeup_erlang": {:hex, :makeup_erlang, "0.1.1", "3fcb7f09eb9d98dc4d208f49cc955a34218fc41ff6b84df7c75b3e6e533cc65f", [:mix], [{:makeup, "~> 1.0", [hex: :makeup, repo: "hexpm", optional: false]}], "hexpm", "174d0809e98a4ef0b3309256cbf97101c6ec01c4ab0b23e926a9e17df2077cbb"},
+  "nimble_parsec": {:hex, :nimble_parsec, "1.1.0", "3a6fca1550363552e54c216debb6a9e95bd8d32348938e13de5eda962c0d7f89", [:mix], [], "hexpm", "08eb32d66b706e913ff748f11694b17981c0b04a33ef470e33e11b3d3ac8f54b"},
+  "shorter_maps": {:hex, :shorter_maps, "2.2.5", "77b2e3632a49c72ca8aea2a47687767b3ad2623b9ade529ffe31f41865a32886", [:mix], [], "hexpm", "fbef59a9f13369f819111f500f0253678526ea8c717d794a224df41223bc88ab"},
+}
