@@ -9,7 +9,12 @@ defmodule Flub.DispatcherSup do
 
   def start_link(_), do: DynamicSupervisor.start_link(__MODULE__, [], [name: __MODULE__])
 
-  def start_worker(node, channel), do: DynamicSupervisor.start_child(__MODULE__, %{id: Flub.Dispatcher, start: {Flub.Dispatcher, :start_link, [node, channel]}, restart: :transient})
+  def start_worker(node, channel) do
+    DynamicSupervisor.start_child(__MODULE__, %{
+      id: Flub.Dispatcher,
+      start: {Flub.Dispatcher, :start_link, [node, channel]}, restart: :transient}
+      )
+  end
 
   ##############################
   # GenServer Callbacks
