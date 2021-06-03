@@ -101,8 +101,7 @@ defmodule Flub.Dispatcher do
   def init([the_node, channel]) do
     :gproc.reg({:n, :l, {__MODULE__, the_node, channel}})
     :gproc.reg({:p, :l, __MODULE__})
-    :pg2.create({__MODULE__, the_node, channel})
-    :pg2.join({__MODULE__, the_node, channel}, self())
+    :pg.join({__MODULE__, the_node, channel}, self())
     subscribers = Subscribers.find(channel)
                   |> Enum.map(fn({pid, funs}) ->
                                 {pid, add_subscriber(channel, pid, funs)}
@@ -160,7 +159,7 @@ defmodule Flub.Dispatcher do
       {__MODULE__, :global, channel},
     ]
     for group <- pg2_groups do
-      case :pg2.get_members(group) do
+      case :pg.get_members(group) do
         list when is_list(list) -> list
         _error -> []
       end

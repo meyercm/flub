@@ -10,6 +10,9 @@ defmodule Flub.NodeSync do
   # API
   ##############################
 
+  @impl GenServer
+  def init(arg), do: {:ok, arg}
+
   @doc """
   Request that the connection to `node` be maintained, via `Node.ping` and
   `Node.monitor`.
