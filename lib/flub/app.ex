@@ -4,16 +4,18 @@ defmodule Flub.App do
 
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
-    # ensure that pg2 is up and running:
-    {:ok, _pid} = :pg2.start
 
     Flub.EtsHelper.setup_tables
+    :ok = case :pg.start_link() do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+      error -> {:error, error}
+    end
     children = [
-      supervisor(Flub.NodeSync.Supervisor, []),
-      supervisor(Flub.DispatcherSup, []),
+      {Flub.NodeSync.Supervisor, []},
+      {Flub.DispatcherSup, []},
     ]
     opts = [strategy: :one_for_one, name: Flub.Supervisor]
     Supervisor.start_link(children, opts)
   end
-
 end
